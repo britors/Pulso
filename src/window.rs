@@ -653,12 +653,13 @@ impl PulsoWindow {
             self,
             move |_, row| if let Some(row) = row {
                 let s = w.state();
-                s.active.set(row.index() as usize);
+                let index = row.index() as usize;
+                let Some(notes) = s.document.borrow().slides.get(index).map(|slide| slide.notes.clone()) else {
+                    return;
+                };
+                s.active.set(index);
                 s.selected.borrow_mut().clear();
-                panels::notes::set_text(
-                    &w.imp().notes_view,
-                    &s.document.borrow().slides[s.active.get()].notes,
-                );
+                panels::notes::set_text(&w.imp().notes_view, &notes);
                 w.refresh_selection();
             }
         ));
