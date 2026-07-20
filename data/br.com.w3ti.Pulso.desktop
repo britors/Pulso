@@ -8,4 +8,4 @@ Type=Application
 Categories=Office;Presentation;
 MimeType=application/x-pulso;
 StartupNotify=true
-DBusActivatable=true
+DBusActivatable=false
