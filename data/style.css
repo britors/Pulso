@@ -1,0 +1,11 @@
+@define-color pulso_primary #FF6F61;
+@define-color pulso_primary_dark #E05548;
+@define-color pulso_primary_light #FFA396;
+
+.pulso-primary { background: @pulso_primary; color: white; }
+.stage-frame { background: #2b2b2b; }
+.slide-list { background: alpha(@window_fg_color, 0.04); }
+.slide-list row { margin: 4px 10px; border-radius: 10px; padding: 6px; }
+.slide-list row:selected { background: alpha(@pulso_primary, 0.22); }
+.notes { border-top: 1px solid alpha(@window_fg_color, 0.12); }
+.selection-label { color: @pulso_primary; font-weight: bold; }

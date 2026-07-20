@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/br/com/w3ti/Pulso">
+    <file>style.css</file>
+    <file preprocess="xml-stripblanks">ui/window.ui</file>
+    <file preprocess="xml-stripblanks">ui/toolbar.ui</file>
+    <file preprocess="xml-stripblanks">ui/inspector.ui</file>
+    <file preprocess="xml-stripblanks">ui/presenter.ui</file>
+    <file preprocess="xml-stripblanks">ui/preferences.ui</file>
+  </gresource>
+</gresources>

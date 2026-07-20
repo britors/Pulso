@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Pulso
+Comment=Crie e apresente slides
+Exec=pulso %F
+Icon=br.com.w3ti.Pulso
+Terminal=false
+Type=Application
+Categories=Office;Presentation;
+MimeType=application/x-pulso;
+StartupNotify=true
+DBusActivatable=true
