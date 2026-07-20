@@ -1031,7 +1031,11 @@ impl PulsoWindow {
                         return false;
                     };
                     let to = row.index().max(0) as usize;
-                    window.reorder_slide(from as usize, to);
+                    glib::idle_add_local_once(glib::clone!(
+                        #[weak]
+                        window,
+                        move || window.reorder_slide(from as usize, to)
+                    ));
                     true
                 }
             ));
@@ -1067,7 +1071,11 @@ impl PulsoWindow {
                 menu,
                 move |_| {
                     menu.popdown();
-                    window.duplicate_slide_at(index as usize);
+                    glib::idle_add_local_once(glib::clone!(
+                        #[weak]
+                        window,
+                        move || window.duplicate_slide_at(index as usize)
+                    ));
                 }
             ));
             actions.append(&duplicate);
@@ -1082,7 +1090,11 @@ impl PulsoWindow {
                 menu,
                 move |_| {
                     menu.popdown();
-                    window.delete_slide_at(index as usize);
+                    glib::idle_add_local_once(glib::clone!(
+                        #[weak]
+                        window,
+                        move || window.delete_slide_at(index as usize)
+                    ));
                 }
             ));
             actions.append(&delete);
