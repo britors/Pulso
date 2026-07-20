@@ -9,3 +9,6 @@
 .slide-list row:selected { background: alpha(@pulso_primary, 0.22); }
 .notes { border-top: 1px solid alpha(@window_fg_color, 0.12); }
 .selection-label { color: @pulso_primary; font-weight: bold; }
+.object-card { min-width: 104px; min-height: 82px; padding: 10px; border-radius: 12px; }
+.object-card:hover { background: alpha(@pulso_primary, 0.12); }
+.object-card image { color: @pulso_primary; }

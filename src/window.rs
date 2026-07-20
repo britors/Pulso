@@ -159,9 +159,13 @@ mod imp {
         #[template_child]
         pub present_button: TemplateChild<gtk::Button>,
         #[template_child]
+        pub recede_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub advance_button: TemplateChild<gtk::Button>,
+        #[template_child]
         pub add_slide_button: TemplateChild<gtk::Button>,
         #[template_child]
-        pub tool_box: TemplateChild<gtk::Box>,
+        pub object_cards: TemplateChild<gtk::FlowBox>,
         pub(super) state: std::cell::OnceCell<Rc<EditorState>>,
     }
     #[glib::object_subclass]
@@ -281,46 +285,79 @@ impl PulsoWindow {
         }
     }
     fn setup_toolbar(&self) {
-        for (label, shape) in [
-            ("Texto", None),
-            ("Retângulo", Some(ShapeType::Rect)),
-            ("Elipse", Some(ShapeType::Ellipse)),
+        #[derive(Clone, Copy)]
+        enum InsertKind {
+            Text,
+            Image,
+            Shape(ShapeType),
+        }
+        for (label, icon, kind) in [
+            ("Texto", "document-edit-symbolic", InsertKind::Text),
+            ("Imagem", "image-x-generic-symbolic", InsertKind::Image),
+            (
+                "Retângulo",
+                "view-grid-symbolic",
+                InsertKind::Shape(ShapeType::Rect),
+            ),
+            (
+                "Elipse",
+                "media-record-symbolic",
+                InsertKind::Shape(ShapeType::Ellipse),
+            ),
+            (
+                "Linha",
+                "list-remove-symbolic",
+                InsertKind::Shape(ShapeType::Line),
+            ),
+            (
+                "Seta",
+                "go-next-symbolic",
+                InsertKind::Shape(ShapeType::Arrow),
+            ),
         ] {
-            let b = gtk::Button::with_label(label);
-            b.connect_clicked(glib::clone!(
+            let button = gtk::Button::new();
+            button.add_css_class("flat");
+            button.add_css_class("card");
+            button.add_css_class("object-card");
+            let content = gtk::Box::new(gtk::Orientation::Vertical, 6);
+            content.set_valign(gtk::Align::Center);
+            let image = gtk::Image::from_icon_name(icon);
+            image.set_pixel_size(28);
+            let title = gtk::Label::new(Some(label));
+            content.append(&image);
+            content.append(&title);
+            button.set_child(Some(&content));
+            button.connect_clicked(glib::clone!(
                 #[weak(rename_to = window)]
                 self,
                 move |_| {
-                    let element = shape.map_or_else(
-                        || Element::text(140.0, 120.0),
-                        |s| Element::shape(s, 180.0, 160.0),
-                    );
+                    if matches!(kind, InsertKind::Image) {
+                        window.insert_image();
+                        return;
+                    }
+                    let element = match kind {
+                        InsertKind::Text => Element::text(140.0, 120.0),
+                        InsertKind::Shape(shape) => Element::shape(shape, 180.0, 160.0),
+                        InsertKind::Image => unreachable!(),
+                    };
                     window.execute(Box::new(AddElement {
                         slide: window.state().active.get(),
                         element,
                     }));
                 }
             ));
-            self.imp().tool_box.append(&b);
+            self.imp().object_cards.insert(&button, -1);
         }
-        let image = gtk::Button::with_label("Imagem");
-        image.connect_clicked(glib::clone!(
+        self.imp().recede_button.connect_clicked(glib::clone!(
             #[weak(rename_to = window)]
             self,
-            move |_| window.insert_image()
+            move |_| window.change_z(-1)
         ));
-        self.imp().tool_box.append(&image);
-        let separator = gtk::Separator::new(gtk::Orientation::Vertical);
-        self.imp().tool_box.append(&separator);
-        for (label, delta) in [("Recuar", -1), ("Avançar", 1)] {
-            let button = gtk::Button::with_label(label);
-            button.connect_clicked(glib::clone!(
-                #[weak(rename_to = window)]
-                self,
-                move |_| window.change_z(delta)
-            ));
-            self.imp().tool_box.append(&button);
-        }
+        self.imp().advance_button.connect_clicked(glib::clone!(
+            #[weak(rename_to = window)]
+            self,
+            move |_| window.change_z(1)
+        ));
     }
     fn setup_stage(&self) {
         let state = self.state();
@@ -594,7 +631,7 @@ impl PulsoWindow {
         self.imp().new_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)]
             self,
-            move |_| w.add_slide()
+            move |_| w.new_document()
         ));
         self.imp().open_button.connect_clicked(glib::clone!(
             #[weak(rename_to = w)]
@@ -709,6 +746,44 @@ impl PulsoWindow {
         let slide = Slide::new(bg);
         self.execute(Box::new(AddSlide { index, slide }));
         s.active.set(index);
+        self.refresh();
+    }
+    fn new_document(&self) {
+        if !self.state().dirty.get() {
+            self.reset_document();
+            return;
+        }
+        let dialog = adw::AlertDialog::builder()
+            .heading("Criar uma nova apresentação?")
+            .body("As alterações não salvas serão descartadas.")
+            .build();
+        dialog.add_response("cancel", "Cancelar");
+        dialog.add_response("discard", "Descartar e criar");
+        dialog.set_response_appearance("discard", adw::ResponseAppearance::Destructive);
+        dialog.choose(
+            Some(self),
+            None::<&gio::Cancellable>,
+            glib::clone!(
+                #[weak(rename_to = window)]
+                self,
+                move |response| {
+                    if response == "discard" {
+                        window.reset_document();
+                    }
+                }
+            ),
+        );
+    }
+    fn reset_document(&self) {
+        let state = self.state();
+        *state.document.borrow_mut() = Document::default();
+        state.media.borrow_mut().clear();
+        state.undo.borrow_mut().clear();
+        state.active.set(0);
+        state.selected.borrow_mut().clear();
+        *state.path.borrow_mut() = None;
+        state.dirty.set(false);
+        recovery::clear();
         self.refresh();
     }
     fn duplicate_slide_at(&self, source: usize) {
@@ -1012,6 +1087,11 @@ impl PulsoWindow {
             ));
             actions.append(&delete);
             menu.set_child(Some(&actions));
+            row.connect_unrealize(glib::clone!(
+                #[weak]
+                menu,
+                move |_| menu.unparent()
+            ));
             let context = gtk::GestureClick::new();
             context.set_button(3);
             context.connect_pressed(glib::clone!(
